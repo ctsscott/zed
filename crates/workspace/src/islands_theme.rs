@@ -70,17 +70,21 @@ pub fn card(div: Div, theme: IslandsTheme, cx: &App) -> Div {
         .overflow_hidden()
 }
 
-/// Outer wrapper applied to the entire workspace dock+center region.
+/// Apply outer styling directly to the workspace's dock+center composition
+/// div. Returning a *modified* div instead of a *wrapping* div is critical:
+/// wrapping breaks the inner flex layout (bottom dock collapses to zero
+/// height) because the wrapper's default flex direction conflicts with the
+/// composition's `flex_row`/`flex_col` choices.
 ///
-/// In `Islands` mode this just adds padding so the workspace background
-/// shows through between cards.
+/// In `Islands` mode this adds padding so the workspace background shows
+/// through around the cards.
 ///
-/// In `OneIsland` mode this wraps everything in one rounded card with a
-/// margin around it.
+/// In `OneIsland` mode this adds margin + rounded card chrome around the
+/// whole composition.
 pub fn outer(div: Div, theme: IslandsTheme, cx: &App) -> Div {
     match theme {
         IslandsTheme::Off => div,
-        IslandsTheme::Islands => div.p(GAP).gap(GAP),
+        IslandsTheme::Islands => div.p(GAP),
         IslandsTheme::OneIsland => {
             let colors = cx.theme().colors();
             div.m(GAP)

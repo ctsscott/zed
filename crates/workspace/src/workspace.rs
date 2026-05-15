@@ -8840,11 +8840,7 @@ impl Render for Workspace {
                                         )),
                                 };
                                 if islands_theme.is_on() {
-                                    islands_theme::outer(
-                                        div().flex().size_full().child(composition),
-                                        islands_theme,
-                                        cx,
-                                    )
+                                    islands_theme::outer(composition, islands_theme, cx)
                                 } else {
                                     composition
                                 }
