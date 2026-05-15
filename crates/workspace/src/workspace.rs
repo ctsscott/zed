@@ -2,6 +2,7 @@ pub mod active_file_name;
 pub mod dock;
 pub mod history_manager;
 pub mod invalid_item_view;
+pub mod islands_theme;
 pub mod item;
 mod modal_layer;
 mod multi_workspace;
@@ -7788,6 +7789,7 @@ impl Workspace {
             .flex_none()
             .child(dock.clone())
             .children(leader_border);
+        container = islands_theme::card(container, islands_theme::IslandsTheme::current(), cx);
 
         // Apply sizing only when the dock is open. When closed the dock is still
         // included in the element tree so its focus handle remains mounted — without
@@ -8572,7 +8574,8 @@ impl Render for Workspace {
                                 ))
                             })
                             .child({
-                                match bottom_dock_layout {
+                                let islands_theme = islands_theme::IslandsTheme::current();
+                                let composition = match bottom_dock_layout {
                                     BottomDockLayout::Full => div()
                                         .flex()
                                         .flex_col()
@@ -8601,12 +8604,30 @@ impl Render for Workspace {
                                                                 .when_some(paddings.0, |this, p| {
                                                                     this.child(p.border_r_1())
                                                                 })
-                                                                .child(self.center.render(
-                                                                    self.zoomed.as_ref(),
-                                                                    &pane_render_context,
-                                                                    window,
-                                                                    cx,
-                                                                ))
+                                                                .map(|this| {
+                                                                    let theme = islands_theme::IslandsTheme::current();
+                                                                    let center = self.center.render(
+                                                                        self.zoomed.as_ref(),
+                                                                        &pane_render_context,
+                                                                        window,
+                                                                        cx,
+                                                                    );
+                                                                    if theme.is_on() {
+                                                                        this.child(islands_theme::card(
+                                                                            div()
+                                                                                .flex()
+                                                                                .flex_col()
+                                                                                .flex_1()
+                                                                                .min_w_0()
+                                                                                .min_h_0()
+                                                                                .child(center),
+                                                                            theme,
+                                                                            cx,
+                                                                        ))
+                                                                    } else {
+                                                                        this.child(center)
+                                                                    }
+                                                                })
                                                                 .when_some(
                                                                     paddings.1,
                                                                     |this, p| {
@@ -8810,6 +8831,15 @@ impl Render for Workspace {
                                             window,
                                             cx,
                                         )),
+                                };
+                                if islands_theme.is_on() {
+                                    islands_theme::outer(
+                                        div().flex().size_full().child(composition),
+                                        islands_theme,
+                                        cx,
+                                    )
+                                } else {
+                                    composition
                                 }
                             })
                             .children(self.zoomed.as_ref().and_then(|view| {
