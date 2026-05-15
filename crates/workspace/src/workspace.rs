@@ -1356,6 +1356,17 @@ pub struct Workspace {
     zoomed: Option<AnyWeakView>,
     previous_dock_drag_coordinates: Option<Point<Pixels>>,
     zoomed_position: Option<DockPosition>,
+    /// Last-observed rendered bottom-Y of the left dock card, used by the
+    /// Islands theme to constrain the center pane's card to the same
+    /// bottom edge. `Cell` for interior mutability from a `canvas(...)`
+    /// paint callback that doesn't have `&mut self`. Set on every frame
+    /// the left dock paints; read by the next frame's center wrapper.
+    side_dock_bottom_y: std::cell::Cell<Option<Pixels>>,
+    /// Last-observed rendered top-Y of the center pane's card wrapper.
+    /// Paired with `side_dock_bottom_y` so we can compute the height
+    /// the center wrapper should be clamped to:
+    ///   `max_h = side_dock_bottom_y - center_top_y`.
+    center_top_y: std::cell::Cell<Option<Pixels>>,
     center: PaneGroup,
     left_dock: Entity<Dock>,
     bottom_dock: Entity<Dock>,
@@ -1799,6 +1810,8 @@ impl Workspace {
             zoomed: None,
             zoomed_position: None,
             previous_dock_drag_coordinates: None,
+            side_dock_bottom_y: std::cell::Cell::new(None),
+            center_top_y: std::cell::Cell::new(None),
             center,
             panes: vec![center_pane.clone()],
             panes_by_item: Default::default(),
@@ -7793,9 +7806,30 @@ impl Workspace {
         // otherwise the bg/border paints an empty rectangle that collides
         // with sibling dock layout (and renders a thin line where the closed
         // right dock's empty card would sit).
+        let theme = islands_theme::IslandsTheme::current();
         if dock.read(cx).visible_panel().is_some() {
-            container =
-                islands_theme::card(container, islands_theme::IslandsTheme::current(), cx);
+            container = islands_theme::card(container, theme, cx);
+        }
+        // Islands theme: when this is the left dock, attach a canvas that
+        // records its rendered bottom-Y into `Workspace::side_dock_bottom_y`
+        // so the center pane's wrapper can clamp itself to the same line.
+        // Without this the center extends past the side docks by a few px
+        // when the bottom dock is closed (the closed bottom dock's mounted
+        // element consumes a few px, but only on the center's side).
+        if theme.is_on() && position == DockPosition::Left {
+            let weak = self.weak_self.clone();
+            container = container.child(
+                canvas(
+                    move |bounds, _window, cx| {
+                        if let Some(ws) = weak.upgrade() {
+                            ws.read(cx).side_dock_bottom_y.set(Some(bounds.bottom()));
+                        }
+                    },
+                    |_, _, _, _| {},
+                )
+                .absolute()
+                .size_full(),
+            );
         }
 
         // Apply sizing only when the dock is open. When closed the dock is still
@@ -7838,6 +7872,53 @@ impl Workspace {
         }
 
         Some(container)
+    }
+
+    /// Wrap the center pane in Islands theme card chrome with bottom-edge
+    /// alignment against the side docks.
+    ///
+    /// Without alignment, the center extends a few pixels past the side
+    /// docks when the bottom dock is closed (closed-but-mounted bottom
+    /// dock element consumes ~ε px, but only in the middle column —
+    /// side docks live in the outer flex_row and aren't affected).
+    ///
+    /// Implementation: a `canvas(...)` paint callback records the center
+    /// wrapper's top-Y into `Workspace::center_top_y`. Another canvas in
+    /// `render_dock` for the left dock records its bottom-Y into
+    /// `side_dock_bottom_y`. When both are set, we clamp the center's
+    /// `max_h` to `side_dock_bottom - center_top` so the bottoms align.
+    /// On the first frame both are `None` and we render without `max_h`
+    /// (the original behavior); the next frame, both are populated.
+    fn wrap_center_in_card(
+        &self,
+        center: impl IntoElement,
+        theme: islands_theme::IslandsTheme,
+        cx: &mut App,
+    ) -> Div {
+        let max_h: Option<Pixels> = match (
+            self.side_dock_bottom_y.get(),
+            self.center_top_y.get(),
+        ) {
+            (Some(bottom), Some(top)) if bottom > top => Some(bottom - top),
+            _ => None,
+        };
+        let weak = self.weak_self.clone();
+        let mut wrapper = div().flex_1().h_full().child(center).child(
+            canvas(
+                move |bounds, _window, cx| {
+                    if let Some(ws) = weak.upgrade() {
+                        ws.read(cx).center_top_y.set(Some(bounds.top()));
+                    }
+                },
+                |_, _, _, _| {},
+            )
+            .absolute()
+            .size_full(),
+        );
+        if let Some(h) = max_h {
+            wrapper = wrapper.max_h(h);
+        }
+        islands_theme::card(wrapper, theme, cx)
     }
 
     pub fn for_window(window: &Window, cx: &App) -> Option<Entity<Workspace>> {
@@ -8613,18 +8694,19 @@ impl Render for Workspace {
                                                                 })
                                                                 .map(|this| {
                                                                     let theme = islands_theme::IslandsTheme::current();
-                                                                    let center = self.center.render(
-                                                                        self.zoomed.as_ref(),
-                                                                        &pane_render_context,
-                                                                        window,
-                                                                        cx,
-                                                                    );
-                                                                    if theme.is_on() {
-                                                                        this.child(islands_theme::card(
-                                                                            div().flex_1().h_full().child(center),
-                                                                            theme,
+                                                                    let center = self
+                                                                        .center
+                                                                        .render(
+                                                                            self.zoomed.as_ref(),
+                                                                            &pane_render_context,
+                                                                            window,
                                                                             cx,
-                                                                        ))
+                                                                        )
+                                                                        .into_any_element();
+                                                                    if theme.is_on() {
+                                                                        this.child(
+                                                                            self.wrap_center_in_card(center, theme, cx),
+                                                                        )
                                                                     } else {
                                                                         this.child(center)
                                                                     }
@@ -8691,18 +8773,19 @@ impl Render for Workspace {
                                                                         )
                                                                         .map(|this| {
                                                                             let theme = islands_theme::IslandsTheme::current();
-                                                                            let center = self.center.render(
-                                                                                self.zoomed.as_ref(),
-                                                                                &pane_render_context,
-                                                                                window,
-                                                                                cx,
-                                                                            );
-                                                                            if theme.is_on() {
-                                                                                this.child(islands_theme::card(
-                                                                                    div().flex_1().h_full().child(center),
-                                                                                    theme,
+                                                                            let center = self
+                                                                                .center
+                                                                                .render(
+                                                                                    self.zoomed.as_ref(),
+                                                                                    &pane_render_context,
+                                                                                    window,
                                                                                     cx,
-                                                                                ))
+                                                                                )
+                                                                                .into_any_element();
+                                                                            if theme.is_on() {
+                                                                                this.child(
+                                                                                    self.wrap_center_in_card(center, theme, cx),
+                                                                                )
                                                                             } else {
                                                                                 this.child(center)
                                                                             }
@@ -8771,18 +8854,19 @@ impl Render for Workspace {
                                                                         )
                                                                         .map(|this| {
                                                                             let theme = islands_theme::IslandsTheme::current();
-                                                                            let center = self.center.render(
-                                                                                self.zoomed.as_ref(),
-                                                                                &pane_render_context,
-                                                                                window,
-                                                                                cx,
-                                                                            );
-                                                                            if theme.is_on() {
-                                                                                this.child(islands_theme::card(
-                                                                                    div().flex_1().h_full().child(center),
-                                                                                    theme,
+                                                                            let center = self
+                                                                                .center
+                                                                                .render(
+                                                                                    self.zoomed.as_ref(),
+                                                                                    &pane_render_context,
+                                                                                    window,
                                                                                     cx,
-                                                                                ))
+                                                                                )
+                                                                                .into_any_element();
+                                                                            if theme.is_on() {
+                                                                                this.child(
+                                                                                    self.wrap_center_in_card(center, theme, cx),
+                                                                                )
                                                                             } else {
                                                                                 this.child(center)
                                                                             }
@@ -8835,21 +8919,19 @@ impl Render for Workspace {
                                                         })
                                                         .map(|this| {
                                                             let theme = islands_theme::IslandsTheme::current();
-                                                            let center = self.center.render(
-                                                                self.zoomed.as_ref(),
-                                                                &pane_render_context,
-                                                                window,
-                                                                cx,
-                                                            );
-                                                            if theme.is_on() {
-                                                                this.child(islands_theme::card(
-                                                                    div()
-                                                                        .flex_1()
-                                                                        .h_full()
-                                                                        .child(center),
-                                                                    theme,
+                                                            let center = self
+                                                                .center
+                                                                .render(
+                                                                    self.zoomed.as_ref(),
+                                                                    &pane_render_context,
+                                                                    window,
                                                                     cx,
-                                                                ))
+                                                                )
+                                                                .into_any_element();
+                                                            if theme.is_on() {
+                                                                this.child(
+                                                                    self.wrap_center_in_card(center, theme, cx),
+                                                                )
                                                             } else {
                                                                 this.child(center)
                                                             }
