@@ -8695,12 +8695,30 @@ impl Render for Workspace {
                                                                                 )
                                                                             },
                                                                         )
-                                                                        .child(self.center.render(
-                                                                            self.zoomed.as_ref(),
-                                                                            &pane_render_context,
-                                                                            window,
-                                                                            cx,
-                                                                        ))
+                                                                        .map(|this| {
+                                                                            let theme = islands_theme::IslandsTheme::current();
+                                                                            let center = self.center.render(
+                                                                                self.zoomed.as_ref(),
+                                                                                &pane_render_context,
+                                                                                window,
+                                                                                cx,
+                                                                            );
+                                                                            if theme.is_on() {
+                                                                                this.child(islands_theme::card(
+                                                                                    div()
+                                                                                        .flex()
+                                                                                        .flex_col()
+                                                                                        .flex_1()
+                                                                                        .min_w_0()
+                                                                                        .min_h_0()
+                                                                                        .child(center),
+                                                                                    theme,
+                                                                                    cx,
+                                                                                ))
+                                                                            } else {
+                                                                                this.child(center)
+                                                                            }
+                                                                        })
                                                                         .when_some(
                                                                             paddings.1,
                                                                             |this, p| {
@@ -8763,12 +8781,30 @@ impl Render for Workspace {
                                                                                 )
                                                                             },
                                                                         )
-                                                                        .child(self.center.render(
-                                                                            self.zoomed.as_ref(),
-                                                                            &pane_render_context,
-                                                                            window,
-                                                                            cx,
-                                                                        ))
+                                                                        .map(|this| {
+                                                                            let theme = islands_theme::IslandsTheme::current();
+                                                                            let center = self.center.render(
+                                                                                self.zoomed.as_ref(),
+                                                                                &pane_render_context,
+                                                                                window,
+                                                                                cx,
+                                                                            );
+                                                                            if theme.is_on() {
+                                                                                this.child(islands_theme::card(
+                                                                                    div()
+                                                                                        .flex()
+                                                                                        .flex_col()
+                                                                                        .flex_1()
+                                                                                        .min_w_0()
+                                                                                        .min_h_0()
+                                                                                        .child(center),
+                                                                                    theme,
+                                                                                    cx,
+                                                                                ))
+                                                                            } else {
+                                                                                this.child(center)
+                                                                            }
+                                                                        })
                                                                         .when_some(
                                                                             paddings.1,
                                                                             |this, p| {
@@ -8815,12 +8851,30 @@ impl Render for Workspace {
                                                         .when_some(paddings.0, |this, p| {
                                                             this.child(p.border_r_1())
                                                         })
-                                                        .child(self.center.render(
-                                                            self.zoomed.as_ref(),
-                                                            &pane_render_context,
-                                                            window,
-                                                            cx,
-                                                        ))
+                                                        .map(|this| {
+                                                            let theme = islands_theme::IslandsTheme::current();
+                                                            let center = self.center.render(
+                                                                self.zoomed.as_ref(),
+                                                                &pane_render_context,
+                                                                window,
+                                                                cx,
+                                                            );
+                                                            if theme.is_on() {
+                                                                this.child(islands_theme::card(
+                                                                    div()
+                                                                        .flex()
+                                                                        .flex_col()
+                                                                        .flex_1()
+                                                                        .min_w_0()
+                                                                        .min_h_0()
+                                                                        .child(center),
+                                                                    theme,
+                                                                    cx,
+                                                                ))
+                                                            } else {
+                                                                this.child(center)
+                                                            }
+                                                        })
                                                         .when_some(paddings.1, |this, p| {
                                                             this.child(p.border_l_1())
                                                         }),

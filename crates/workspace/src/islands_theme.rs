@@ -63,7 +63,10 @@ pub fn card(div: Div, theme: IslandsTheme, cx: &App) -> Div {
         return div;
     }
     let colors = cx.theme().colors();
-    div.rounded(CARD_RADIUS)
+    // 3px margin on all sides means adjacent cards have a 6px gap
+    // between them — half the gap belongs to each side.
+    div.m(px(3.))
+        .rounded(CARD_RADIUS)
         .bg(colors.surface_background)
         .border_1()
         .border_color(colors.border_variant)
@@ -84,7 +87,10 @@ pub fn card(div: Div, theme: IslandsTheme, cx: &App) -> Div {
 pub fn outer(div: Div, theme: IslandsTheme, cx: &App) -> Div {
     match theme {
         IslandsTheme::Off => div,
-        IslandsTheme::Islands => div.p(GAP),
+        // The cards each contribute their own 3px margin, so we only
+        // add 3px of outer padding to make the workspace edges match
+        // the inter-card spacing.
+        IslandsTheme::Islands => div.p(px(3.)),
         IslandsTheme::OneIsland => {
             let colors = cx.theme().colors();
             div.m(GAP)
