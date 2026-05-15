@@ -7789,7 +7789,14 @@ impl Workspace {
             .flex_none()
             .child(dock.clone())
             .children(leader_border);
-        container = islands_theme::card(container, islands_theme::IslandsTheme::current(), cx);
+        // Only apply Islands card chrome when the dock has a visible panel,
+        // otherwise the bg/border paints an empty rectangle that collides
+        // with sibling dock layout (and renders a thin line where the closed
+        // right dock's empty card would sit).
+        if dock.read(cx).visible_panel().is_some() {
+            container =
+                islands_theme::card(container, islands_theme::IslandsTheme::current(), cx);
+        }
 
         // Apply sizing only when the dock is open. When closed the dock is still
         // included in the element tree so its focus handle remains mounted — without
