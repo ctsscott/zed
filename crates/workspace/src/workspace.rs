@@ -7845,22 +7845,41 @@ impl Workspace {
 
     /// Wrap the center pane in Islands theme card chrome.
     ///
-    /// PR-7 explored bounds-tracking via `canvas(...)` observers on the
-    /// left dock and on this wrapper to clamp the center's `max_h` so
-    /// its bottom edge would match the side docks'. The observer-inside-
-    /// wrapper pattern interfered with the center's own layout (caused
-    /// the center to render at zero/wrong size in some frames), so the
-    /// approach was abandoned. The unused `side_dock_bottom_y` /
-    /// `center_top_y` fields remain on `Workspace` for a future
-    /// alignment attempt that operates outside the wrapper.
+    /// Structure: an outer `flex_1.h_full` div with 3px padding on all
+    /// sides eats 6px out of the available width and height. The inner
+    /// card (rounded + bg + border) fills the remaining inset area.
+    /// This makes the center card's outer bounds match what the side
+    /// docks' cards occupy (their 3px margin from `card()` also leaves
+    /// a 3px gap on each side), so the bottom edges line up.
     fn wrap_center_in_card(
         &self,
         center: impl IntoElement,
         theme: islands_theme::IslandsTheme,
-        cx: &mut App,
+        _cx: &mut App,
     ) -> Div {
-        let wrapper = div().flex_1().h_full().child(center);
-        islands_theme::card(wrapper, theme, cx)
+        if !theme.is_on() {
+            // No chrome — return the bare center inside a flex_1.h_full
+            // div so callers can `.child(...)` it uniformly.
+            return div().flex_1().h_full().child(center);
+        }
+        let colors = _cx.theme().colors();
+        // Outer = flex_1.h_full with padding = same 3px gap that side
+        // docks contribute via their card's m(px(3.)). Inner card fills
+        // the padded interior with the rounded chrome.
+        div()
+            .flex_1()
+            .h_full()
+            .p(px(3.))
+            .child(
+                div()
+                    .size_full()
+                    .rounded(islands_theme::CARD_RADIUS)
+                    .bg(colors.surface_background)
+                    .border_1()
+                    .border_color(colors.border_variant)
+                    .overflow_hidden()
+                    .child(center),
+            )
     }
 
     pub fn for_window(window: &Window, cx: &App) -> Option<Entity<Workspace>> {
