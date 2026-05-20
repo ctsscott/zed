@@ -8532,16 +8532,26 @@ impl Render for Workspace {
                     .child(
                         div()
                             .id("workspace")
-                            .bg(colors.background)
+                            // Islands theme: paint the gap-between-cards
+                            // surface with the title-bar color so the
+                            // bars + gaps form one continuous frame the
+                            // cards float on. Also drop the thin top/bot
+                            // separator lines that break that continuity.
+                            .when(islands_theme::IslandsTheme::current().is_on(), |this| {
+                                this.bg(cx.theme().colors().title_bar_background)
+                            })
+                            .when(!islands_theme::IslandsTheme::current().is_on(), |this| {
+                                this.bg(colors.background)
+                                    .border_t_1()
+                                    .border_b_1()
+                                    .border_color(colors.border)
+                            })
                             .relative()
                             .flex_1()
                             .w_full()
                             .flex()
                             .flex_col()
                             .overflow_hidden()
-                            .border_t_1()
-                            .border_b_1()
-                            .border_color(colors.border)
                             .child({
                                 let this = cx.entity();
                                 canvas(

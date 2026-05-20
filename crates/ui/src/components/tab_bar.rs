@@ -91,6 +91,33 @@ impl ParentElement for TabBar {
 
 impl RenderOnce for TabBar {
     fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
+        // Islands theme: paint the tab strip with `editor_background`
+        // bumped +8% lightness so the strip stands out from the editor
+        // content below as a distinct brighter band — matches the
+        // GoLand Islands look. We can't rely on a theme slot
+        // (`tab_bar_background`, `surface_background`, etc.) because
+        // custom themes (notably the user's Darcula) define those equal
+        // to or darker than `editor_background`, giving zero visible
+        // contrast. Computing the color directly from `editor_background`
+        // guarantees the strip is brighter regardless of theme.
+        //
+        // Env-var driven duplicate of `workspace::islands_theme::is_on()`
+        // to avoid a `ui -> workspace` dep cycle.
+        let islands_theme_on = matches!(
+            std::env::var("ZED_ISLANDS_THEME").as_deref(),
+            Ok("islands") | Ok("on") | Ok("1") | Ok("one") | Ok("one_island")
+        );
+        let bg = if islands_theme_on {
+            let base = cx.theme().colors().editor_background;
+            gpui::Hsla {
+                h: base.h,
+                s: base.s,
+                l: (base.l + 0.08).min(1.0),
+                a: base.a,
+            }
+        } else {
+            cx.theme().colors().tab_bar_background
+        };
         div()
             .id(self.id)
             .group("tab_bar")
@@ -98,7 +125,7 @@ impl RenderOnce for TabBar {
             .flex_none()
             .w_full()
             .h(Tab::container_height(cx))
-            .bg(cx.theme().colors().tab_bar_background)
+            .bg(bg)
             .when(!self.start_children.is_empty(), |this| {
                 this.child(
                     h_flex()

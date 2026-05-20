@@ -564,10 +564,20 @@ struct ItemColors {
 
 fn get_item_color(is_sticky: bool, cx: &App) -> ItemColors {
     let colors = cx.theme().colors();
+    // Islands theme: match the dock's bg (also set to editor_background
+    // in workspace::dock) so the whole panel reads as one continuous
+    // surface. Env-var-driven duplicate of
+    // `workspace::islands_theme::is_on()` to avoid a dep cycle.
+    let islands_theme_on = matches!(
+        std::env::var("ZED_ISLANDS_THEME").as_deref(),
+        Ok("islands") | Ok("on") | Ok("1") | Ok("one") | Ok("one_island")
+    );
 
     ItemColors {
         default: if is_sticky {
             colors.panel_overlay_background
+        } else if islands_theme_on {
+            colors.editor_background
         } else {
             colors.panel_background
         },

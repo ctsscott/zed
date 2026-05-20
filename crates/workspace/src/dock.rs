@@ -1147,13 +1147,26 @@ impl Render for Dock {
                 }
             };
 
+            // Islands theme: env-var-driven duplicate of
+            // `workspace::islands_theme::is_on()` to avoid a dep cycle.
+            // When on, the dock paints `editor_background` so its color
+            // matches the editor card interior (the editor pane paints
+            // its own background with `editor_background`, and we want
+            // the file-explorer / terminal docks to be the same shade
+            // as the editor — not the slightly-lighter card chrome the
+            // workspace wraps both in).
+            let islands_bg = matches!(
+                std::env::var("ZED_ISLANDS_THEME").as_deref(),
+                Ok("islands") | Ok("on") | Ok("1") | Ok("one") | Ok("one_island")
+            )
+            .then(|| cx.theme().colors().editor_background);
             div()
                 .id("dock-panel")
                 .key_context(dispatch_context)
                 .track_focus(&self.focus_handle(cx))
                 .focus_follows_mouse(self.focus_follows_mouse, cx)
                 .flex()
-                .bg(cx.theme().colors().panel_background)
+                .bg(islands_bg.unwrap_or(cx.theme().colors().panel_background))
                 .border_color(cx.theme().colors().border)
                 .overflow_hidden()
                 .map(|this| match self.position().axis() {
