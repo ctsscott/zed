@@ -7,8 +7,7 @@ use crate::{
     db::{
         self, BufferId, Capability, Channel, ChannelId, ChannelRole, ChannelsForUser, Database,
         InviteMemberResult, MembershipUpdated, NotificationId, ProjectId, RejoinedProject,
-        RemoveChannelMemberResult, RespondToChannelInvite, RoomId, ServerId, SharedThreadId,
-        UserId,
+        RemoveChannelMemberResult, RespondToChannelInvite, RoomId, ServerId, UserId,
     },
     executor::Executor,
 };
@@ -364,6 +363,7 @@ impl Server {
             .add_request_handler(forward_read_only_project_request::<proto::OpenBufferById>)
             .add_request_handler(forward_read_only_project_request::<proto::SynchronizeBuffers>)
             .add_request_handler(forward_read_only_project_request::<proto::ResolveInlayHint>)
+            .add_request_handler(forward_read_only_project_request::<proto::ResolveCodeAction>)
             .add_request_handler(forward_read_only_project_request::<proto::ResolveDocumentLink>)
             .add_request_handler(forward_read_only_project_request::<proto::GetColorPresentation>)
             .add_request_handler(forward_read_only_project_request::<proto::OpenBufferByPath>)
@@ -493,6 +493,7 @@ impl Server {
             .add_request_handler(forward_mutating_project_request::<proto::GitCreateRemote>)
             .add_request_handler(forward_mutating_project_request::<proto::GitRemoveRemote>)
             .add_request_handler(forward_read_only_project_request::<proto::GitGetWorktrees>)
+            .add_request_handler(forward_read_only_project_request::<proto::GitWorktreeCreatedAt>)
             .add_request_handler(forward_read_only_project_request::<proto::GitGetHeadSha>)
             .add_request_handler(forward_read_only_project_request::<proto::GetCommitData>)
             .add_request_stream_handler(
@@ -511,8 +512,6 @@ impl Server {
             .add_request_handler(forward_mutating_project_request::<proto::CheckForPushedCommits>)
             .add_request_handler(forward_mutating_project_request::<proto::ToggleLspLogs>)
             .add_message_handler(broadcast_project_message_from_host::<proto::LanguageServerLog>)
-            .add_request_handler(share_agent_thread)
-            .add_request_handler(get_shared_agent_thread)
             .add_request_handler(forward_project_search_chunk);
 
         Arc::new(server)
@@ -1493,44 +1492,6 @@ async fn rejoin_room(
             .rejoin_room(request, session.user_id(), session.connection_id)
             .await?;
 
-        // Include fresh LiveKit connection info so that clients whose LiveKit
-        // connection failed (e.g. because their token was revoked by a stale
-        // connection cleanup) can re-establish it.
-        let live_kit_connection_info =
-            session
-                .app_state
-                .livekit_client
-                .as_ref()
-                .and_then(|live_kit| {
-                    let (can_publish, token) = if rejoined_room.role == ChannelRole::Guest {
-                        (
-                            false,
-                            live_kit
-                                .guest_token(
-                                    &rejoined_room.room.livekit_room,
-                                    &session.user_id().to_string(),
-                                )
-                                .trace_err()?,
-                        )
-                    } else {
-                        (
-                            true,
-                            live_kit
-                                .room_token(
-                                    &rejoined_room.room.livekit_room,
-                                    &session.user_id().to_string(),
-                                )
-                                .trace_err()?,
-                        )
-                    };
-
-                    Some(LiveKitConnectionInfo {
-                        server_url: live_kit.url().into(),
-                        token,
-                        can_publish,
-                    })
-                });
-
         response.send(proto::RejoinRoomResponse {
             room: Some(rejoined_room.room.clone()),
             reshared_projects: rejoined_room
@@ -1550,7 +1511,6 @@ async fn rejoin_room(
                 .iter()
                 .map(|rejoined_project| rejoined_project.to_proto())
                 .collect(),
-            live_kit_connection_info,
         })?;
         room_updated(&rejoined_room.room, &session.peer);
 
@@ -4188,54 +4148,6 @@ fn project_left(project: &db::LeftProject, session: &Session) {
                 .trace_err();
         }
     }
-}
-
-async fn share_agent_thread(
-    request: proto::ShareAgentThread,
-    response: Response<proto::ShareAgentThread>,
-    session: MessageContext,
-) -> Result<()> {
-    let user_id = session.user_id();
-
-    let share_id = SharedThreadId::from_proto(request.session_id.clone())
-        .ok_or_else(|| anyhow!("Invalid session ID format"))?;
-
-    session
-        .db()
-        .await
-        .upsert_shared_thread(share_id, user_id, &request.title, request.thread_data)
-        .await?;
-
-    response.send(proto::Ack {})?;
-
-    Ok(())
-}
-
-async fn get_shared_agent_thread(
-    request: proto::GetSharedAgentThread,
-    response: Response<proto::GetSharedAgentThread>,
-    session: MessageContext,
-) -> Result<()> {
-    let share_id = SharedThreadId::from_proto(request.session_id)
-        .ok_or_else(|| anyhow!("Invalid session ID format"))?;
-
-    let result = session.db().await.get_shared_thread(share_id).await?;
-
-    match result {
-        Some((thread, username)) => {
-            response.send(proto::GetSharedAgentThreadResponse {
-                title: thread.title,
-                thread_data: thread.data,
-                sharer_username: username,
-                created_at: thread.created_at.and_utc().to_rfc3339(),
-            })?;
-        }
-        None => {
-            return Err(anyhow!("Shared thread not found").into());
-        }
-    }
-
-    Ok(())
 }
 
 pub trait ResultExt {
