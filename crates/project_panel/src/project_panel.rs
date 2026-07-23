@@ -626,9 +626,9 @@ fn get_item_color(is_sticky: bool, cx: &App) -> ItemColors {
     // in workspace::dock) so the whole panel reads as one continuous
     // surface. Env-var-driven duplicate of
     // `workspace::islands_theme::is_on()` to avoid a dep cycle.
-    let islands_theme_on = matches!(
+    let islands_theme_on = !matches!(
         std::env::var("ZED_ISLANDS_THEME").as_deref(),
-        Ok("islands") | Ok("on") | Ok("1") | Ok("one") | Ok("one_island")
+        Ok("off") | Ok("0")
     );
 
     ItemColors {

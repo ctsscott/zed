@@ -1160,10 +1160,10 @@ impl Render for Dock {
             // the file-explorer / terminal docks to be the same shade
             // as the editor — not the slightly-lighter card chrome the
             // workspace wraps both in).
-            let islands_bg = matches!(
+            let islands_bg = (!matches!(
                 std::env::var("ZED_ISLANDS_THEME").as_deref(),
-                Ok("islands") | Ok("on") | Ok("1") | Ok("one") | Ok("one_island")
-            )
+                Ok("off") | Ok("0")
+            ))
             .then(|| cx.theme().colors().editor_background);
             div()
                 .id("dock-panel")

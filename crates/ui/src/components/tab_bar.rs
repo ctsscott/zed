@@ -102,10 +102,11 @@ impl RenderOnce for TabBar {
         // guarantees the strip is brighter regardless of theme.
         //
         // Env-var driven duplicate of `workspace::islands_theme::is_on()`
-        // to avoid a `ui -> workspace` dep cycle.
-        let islands_theme_on = matches!(
+        // to avoid a `ui -> workspace` dep cycle. On by default; only
+        // `off`/`0` disables it.
+        let islands_theme_on = !matches!(
             std::env::var("ZED_ISLANDS_THEME").as_deref(),
-            Ok("islands") | Ok("on") | Ok("1") | Ok("one") | Ok("one_island")
+            Ok("off") | Ok("0")
         );
         let bg = if islands_theme_on {
             let base = cx.theme().colors().editor_background;

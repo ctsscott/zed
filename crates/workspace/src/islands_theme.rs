@@ -16,8 +16,9 @@
 //! No layout change: the existing `bottom_dock_layout` branches still
 //! compose the same way. The Islands theme is purely chrome.
 //!
-//! Toggle via `ZED_ISLANDS_THEME=islands` or `ZED_ISLANDS_THEME=one`.
-//! Anything else (including unset) leaves rendering at the default.
+//! The `Islands` variant is the baked-in default. Override via
+//! `ZED_ISLANDS_THEME=one` for the single-card variant, or
+//! `ZED_ISLANDS_THEME=off` to disable.
 
 use gpui::{App, Div, Pixels, Styled, px};
 use ui::ActiveTheme;
@@ -30,12 +31,13 @@ pub enum IslandsTheme {
 }
 
 impl IslandsTheme {
-    /// Read the current setting from the env var.
+    /// Read the current setting. The `Islands` variant is the baked-in
+    /// default; the env var only needs to be set to override it.
     pub fn current() -> IslandsTheme {
         match std::env::var("ZED_ISLANDS_THEME").as_deref() {
-            Ok("islands") | Ok("on") | Ok("1") => IslandsTheme::Islands,
+            Ok("off") | Ok("0") => IslandsTheme::Off,
             Ok("one") | Ok("one_island") => IslandsTheme::OneIsland,
-            _ => IslandsTheme::Off,
+            _ => IslandsTheme::Islands,
         }
     }
 
