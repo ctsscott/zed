@@ -60,14 +60,15 @@ pub const CARD_RADIUS: Pixels = px(8.);
 ///
 /// In `OneIsland` mode this is a no-op — the outer wrapper handles
 /// rounding for the whole composition.
-pub fn card(div: Div, theme: IslandsTheme, cx: &App) -> Div {
+pub fn card<E: Styled>(element: E, theme: IslandsTheme, cx: &App) -> E {
     if !matches!(theme, IslandsTheme::Islands) {
-        return div;
+        return element;
     }
     let colors = cx.theme().colors();
     // 3px margin on all sides means adjacent cards have a 6px gap
     // between them — half the gap belongs to each side.
-    div.m(px(3.))
+    element
+        .m(px(3.))
         .rounded(CARD_RADIUS)
         .bg(colors.surface_background)
         .border_1()
