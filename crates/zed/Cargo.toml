@@ -299,13 +299,19 @@ osx_minimum_system_version = "10.15.7"
 osx_info_plist_exts = ["resources/info/*"]
 osx_url_schemes = ["zed"]
 
+# Islands fork: this bundle installs as "Zed Islands.app" alongside the
+# official Zed and Zed Dev. It must NOT share their bundle identifiers, or
+# macOS Launch Services arbitrarily picks between them for the `zed://` URL
+# scheme, the `zed` CLI shim, and "Open With". Upstream ships
+# identifier = "dev.zed.Zed" / name = "Zed" here; we deliberately diverge.
+# Keep this divergence when resolving upstream merge conflicts in this file.
 [package.metadata.bundle-stable]
 icon = ["resources/app-icon@2x.png", "resources/app-icon.png"]
-identifier = "dev.zed.Zed"
-name = "Zed"
+identifier = "dev.zed.Zed-Islands"
+name = "Zed Islands"
 osx_minimum_system_version = "10.15.7"
 osx_info_plist_exts = ["resources/info/*"]
-osx_url_schemes = ["zed"]
+osx_url_schemes = ["zed-islands", "zed"]
 
 [package.metadata.cargo-machete]
 ignored = ["profiling", "zstd", "tracing"]
