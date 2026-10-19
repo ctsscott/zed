@@ -19,6 +19,10 @@ pub struct WorkspaceSettingsContent {
     ///
     /// Default: platform_default
     pub text_rendering_mode: Option<TextRenderingMode>,
+    /// Whether to render windows using the Display P3 color space (macOS only).
+    ///
+    /// Default: false
+    pub use_display_p3: Option<bool>,
     /// Layout mode for the bottom dock
     ///
     /// Default: contained
@@ -125,7 +129,7 @@ pub struct WorkspaceSettingsContent {
     ///
     /// Default: false
     pub close_on_file_delete: Option<bool>,
-    /// Whether to allow windows to tab together based on the user’s tabbing preference (macOS only).
+    /// Whether to allow windows to tab together based on the user's tabbing preference (macOS only).
     ///
     /// Default: false
     pub use_system_window_tabs: Option<bool>,

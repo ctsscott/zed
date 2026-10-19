@@ -1461,15 +1461,18 @@ impl AgentDiff {
                     self.update_reviewing_editors(workspace, window, cx);
                 }
             }
-            AcpThreadEvent::Stopped(_) => {
+            AcpThreadEvent::Stopped { .. } => {
                 self.update_reviewing_editors(workspace, window, cx);
             }
             AcpThreadEvent::Error | AcpThreadEvent::LoadError(_) | AcpThreadEvent::Refusal => {
                 self.update_reviewing_editors(workspace, window, cx);
             }
             AcpThreadEvent::TitleUpdated
+            | AcpThreadEvent::ActivityConfirmedIdle
             | AcpThreadEvent::StatusChanged
-            | AcpThreadEvent::TokenUsageUpdated
+            | AcpThreadEvent::SubmissionUpdated(_)
+            | AcpThreadEvent::TokenUsageUpdated(_)
+            | AcpThreadEvent::NoticesUpdated
             | AcpThreadEvent::SubagentSpawned(_)
             | AcpThreadEvent::EntriesRemoved(_)
             | AcpThreadEvent::ToolAuthorizationRequested(_)
